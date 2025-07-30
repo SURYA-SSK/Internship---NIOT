@@ -1,0 +1,69 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+LiquidCrystal_I2C lcd(0x27, 16, 4);
+const int solarCurrentPin     = 32;
+const int leadCurrentPin      = 33;
+const int lithiumCurrentPin   = 34;
+const int loadCurrentPin      = 35;
+const int solarVoltagePin     = 36;
+const int leadVoltagePin      = 39;
+const int lithiumVoltagePin   = 25;
+const int loadVoltagePin      = 26;
+const int relayPin            = 27;
+
+void setup() {
+  Serial.begin(115200);
+  lcd.init();
+  lcd.backlight();
+  pinMode(relayPin, OUTPUT);
+  digitalWrite(relayPin, LOW);
+}
+float readCurrent(int pin) {
+  int sensorValue = analogRead(pin);
+  float voltage = (sensorValue * 3.3) / 4095.0;
+  float current = (voltage - 2.5) / 0.066;
+  return current;
+}
+float readVoltage(int pin) {
+  int sensorValue = analogRead(pin);
+  float voltage = (sensorValue * 3.3) / 4095.0;
+  float realVoltage = voltage * (25.0 / 3.3);
+  return realVoltage;
+}
+
+void loop() {
+  float solarCurrent     = readCurrent(solarCurrentPin);
+  float leadCurrent      = readCurrent(leadCurrentPin);
+  float lithiumCurrent   = readCurrent(lithiumCurrentPin);
+  float loadCurrent      = readCurrent(loadCurrentPin);
+
+  float solarVoltage     = readVoltage(solarVoltagePin);
+  float leadVoltage      = readVoltage(leadVoltagePin);
+  float lithiumVoltage   = readVoltage(lithiumVoltagePin);
+  float loadVoltage      = readVoltage(loadVoltagePin);
+
+  String powerSource = "";
+  if (leadVoltage < 12.0) {
+    digitalWrite(relayPin, HIGH);
+    powerSource = "Lithium-ion";
+  } else {
+    digitalWrite(relayPin, LOW);
+    powerSource = "Lead-Acid";
+  }
+  Serial.println("---- SYSTEM READINGS ----");
+  Serial.printf("Solar:   %.2fV  %.2fA\n", solarVoltage, solarCurrent);
+  Serial.printf("Lead:    %.2fV  %.2fA\n", leadVoltage, leadCurrent);
+  Serial.printf("Lithium: %.2fV  %.2fA\n", lithiumVoltage, lithiumCurrent);
+  Serial.printf("Load:    %.2fV  %.2fA\n", loadVoltage, loadCurrent);
+  Serial.printf("Source:  %s\n", powerSource.c_str());
+  lcd.setCursor(0, 0);
+  lcd.printf("S:%.1fV %.1fA", solarVoltage, solarCurrent);
+  lcd.setCursor(0, 1);
+  lcd.printf("L:%.1fV %.1fA", leadVoltage, leadCurrent);
+  lcd.setCursor(0, 2);
+  lcd.printf("B:%.1fV %.1fA", lithiumVoltage, lithiumCurrent);
+  lcd.setCursor(0, 3);
+  lcd.printf("Src:%s", powerSource.c_str());
+
+  delay(2000);
+}
